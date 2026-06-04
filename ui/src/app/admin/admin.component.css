@@ -1,0 +1,240 @@
+.top-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #8b8040;
+  color: white;
+  padding: 10px 20px;
+  font-family: Arial, sans-serif;
+}
+
+.navbar-left,
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar-logo { font-size: 20px; }
+.navbar-title { font-size: 15px; font-weight: bold; }
+.navbar-user-info { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.navbar-user { font-size: 13px; }
+.navbar-designation { font-size: 11px; opacity: 0.85; }
+
+.btn-logout {
+  background-color: rgba(255,255,255,0.2);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 3px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.admin-page {
+  min-height: calc(100vh - 44px);
+  background-color: #f5f5f0;
+  padding: 16px 20px 28px;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #333;
+}
+
+.panel {
+  border: 1px solid #c8c07a;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fefef5;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  background-color: #8b8040;
+  color: white;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.panel-body { padding: 14px; }
+
+.dropdown-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #555;
+}
+
+select,
+input {
+  height: 32px;
+  border: 1px solid #c8c07a;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background-color: #fffff0;
+  color: #333;
+  box-sizing: border-box;
+}
+
+select:focus,
+input:focus {
+  outline: none;
+  border-color: #8fbc5a;
+}
+
+.assignment-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(130px, 0.8fr) minmax(180px, 1.2fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 4px;
+}
+
+.assignment-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.assignment-label {
+  font-size: 11px;
+  color: #777;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.assignment-cell strong {
+  font-size: 13px;
+  color: #333;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.assignment-cell small {
+  color: #777;
+  font-size: 11px;
+}
+
+.muted {
+  color: #888;
+  font-weight: normal;
+}
+
+.assignment-actions {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  border: none;
+  border-radius: 3px;
+  color: white;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  height: 32px;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.btn-primary { background-color: #1565c0; }
+.btn-primary:hover { background-color: #0d47a1; }
+.btn-primary:disabled { background-color: #90caf9; cursor: not-allowed; }
+
+.btn-secondary {
+  background-color: #6c757d;
+}
+.btn-secondary:hover { background-color: #5a6268; }
+.change-btn { justify-self: end; min-width: 92px; }
+
+.btn-danger {
+  background-color: #d9534f;
+  height: 28px;
+  font-size: 12px;
+}
+.btn-danger:hover { background-color: #c9302c; }
+
+.alert-success,
+.alert-error {
+  padding: 9px 12px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.alert-success {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: #2e7d32;
+}
+
+.alert-error {
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  color: #c62828;
+}
+
+.table-body { padding: 0; }
+
+.officers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.officers-table thead tr {
+  background-color: #add8e6;
+}
+
+.officers-table th,
+.officers-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e8e0a0;
+  text-align: left;
+}
+
+.officers-table th {
+  font-weight: bold;
+  color: #333;
+}
+
+.officers-table tbody tr:hover {
+  background: #fffff0;
+}
+
+.empty {
+  text-align: center;
+  color: #888;
+  padding: 20px !important;
+}
+
+@media (max-width: 900px) {
+  .dropdown-grid,
+  .assignment-row,
+  .assignment-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .change-btn { justify-self: stretch; }
+}

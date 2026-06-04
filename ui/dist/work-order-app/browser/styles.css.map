@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/styles.css"],
+  "sourcesContent": ["/* Global Styles */\r\n* {\r\n  box-sizing: border-box;\r\n  margin: 0;\r\n  padding: 0;\r\n}\r\n\r\nbody {\r\n  font-family: Arial, sans-serif;\r\n  font-size: 13px;\r\n  background-color: #f5f5f0;\r\n  color: #333;\r\n}\r\n\r\ninput[type=\"text\"],\r\ninput[type=\"number\"],\r\nselect {\r\n  border: 1px solid #ccc;\r\n  border-radius: 3px;\r\n  padding: 3px 5px;\r\n  font-size: 12px;\r\n  outline: none;\r\n}\r\n\r\ninput[type=\"text\"]:focus,\r\ninput[type=\"number\"]:focus,\r\nselect:focus {\r\n  border-color: #8fbc5a;\r\n  box-shadow: 0 0 3px rgba(143, 188, 90, 0.4);\r\n}\r\n\r\nbutton {\r\n  cursor: pointer;\r\n  border: none;\r\n  border-radius: 3px;\r\n  font-size: 12px;\r\n  font-weight: bold;\r\n  padding: 4px 10px;\r\n}\r\n"],
+  "mappings": ";AACA;AACE,cAAY;AACZ,UAAQ;AACR,WAAS;AACX;AAEA;AACE,eAAa,KAAK,EAAE;AACpB,aAAW;AACX,oBAAkB;AAClB,SAAO;AACT;AAEA,KAAK,CAAC;AACN,KAAK,CAAC;AACN;AACE,UAAQ,IAAI,MAAM;AAClB,iBAAe;AACf,WAAS,IAAI;AACb,aAAW;AACX,WAAS;AACX;AAEA,KAAK,CAAC,UAAY;AAClB,KAAK,CAAC,YAAc;AACpB,MAAM;AACJ,gBAAc;AACd,cAAY,EAAE,EAAE,IAAI,KAAK,GAAG,EAAE,GAAG,EAAE,EAAE,EAAE;AACzC;AAEA;AACE,UAAQ;AACR,UAAQ;AACR,iBAAe;AACf,aAAW;AACX,eAAa;AACb,WAAS,IAAI;AACf;",
+  "names": []
+}

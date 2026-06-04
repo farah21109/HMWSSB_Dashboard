@@ -1,0 +1,102 @@
+<div class="top-navbar">
+  <div class="navbar-left">
+    <span class="navbar-logo">&#127963;</span>
+    <span class="navbar-title">Admin Officer Management</span>
+  </div>
+  <div class="navbar-right">
+    <div class="navbar-user-info">
+      <span class="navbar-user">&#128100; {{ userName }}</span>
+      <span class="navbar-designation">Administrator</span>
+    </div>
+    <button class="btn-logout" (click)="onLogout()">Logout</button>
+  </div>
+</div>
+
+<div class="admin-page">
+  <section class="panel">
+    <div class="section-title">Jurisdiction Assignment</div>
+    <div class="panel-body">
+      <div class="dropdown-grid">
+        <label>
+          <span>Corporation</span>
+          <select [(ngModel)]="selection.corporation" (change)="onCorporationChange()">
+            <option value="">Select Corporation</option>
+            <option *ngFor="let item of options.corporations" [value]="item">{{ item }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Zone</span>
+          <select [(ngModel)]="selection.zone" (change)="onZoneChange()">
+            <option value="">Select Zone</option>
+            <option *ngFor="let item of options.zones" [value]="item">{{ item }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Division</span>
+          <select [(ngModel)]="selection.division" (change)="onDivisionChange()">
+            <option value="">Select Division</option>
+            <option *ngFor="let item of options.divisions" [value]="item">{{ formatDivision(item) }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Circle</span>
+          <select [(ngModel)]="selection.circle" (change)="onCircleChange()">
+            <option value="">Select Circle</option>
+            <option *ngFor="let item of options.circles" [value]="item">{{ item }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Ward</span>
+          <select [(ngModel)]="selection.ward" (change)="onWardChange()">
+            <option value="">Select Ward</option>
+            <option *ngFor="let item of options.wards" [value]="item">{{ item }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="assignment-row" *ngIf="currentLevel">
+        <div class="assignment-cell">
+          <span class="assignment-label">Name</span>
+          <strong>{{ currentAssignment?.officer_name || 'No officer assigned' }}</strong>
+          <small *ngIf="currentAssignment?.officer_key">{{ currentAssignment?.officer_key }}</small>
+        </div>
+        <div class="assignment-cell">
+          <span class="assignment-label">Contact Number</span>
+          <strong>{{ currentAssignment?.officer_contact || '-' }}</strong>
+        </div>
+        <div class="assignment-cell">
+          <span class="assignment-label">Designation</span>
+          <strong>{{ currentDesignation }}</strong>
+        </div>
+        <div class="assignment-cell">
+          <span class="assignment-label">Department</span>
+          <strong>{{ departmentName }}</strong>
+        </div>
+        <button class="btn-primary change-btn" (click)="startChange()">Change</button>
+      </div>
+
+      <div class="assignment-actions" *ngIf="currentLevel && isChangingAssignment">
+        <label>
+          <span>New Officer</span>
+          <select [(ngModel)]="selectedOfficerKey">
+            <option value="">Remove assignment</option>
+            <option *ngFor="let officer of eligibleOfficers" [value]="officer.key">
+              {{ officer.name }} ({{ officer.key }}) - {{ officer.contact }}
+            </option>
+          </select>
+        </label>
+        <button class="btn-primary" (click)="saveAssignment()" [disabled]="isSaving || isLoading">
+          {{ isSaving ? 'Saving...' : 'Save Change' }}
+        </button>
+        <button class="btn-secondary" (click)="cancelChange()" [disabled]="isSaving">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="alert-success" *ngIf="message">{{ message }}</div>
+  <div class="alert-error" *ngIf="error">{{ error }}</div>
+</div>

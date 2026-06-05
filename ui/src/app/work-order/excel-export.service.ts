@@ -10,30 +10,23 @@ export class ExcelExportService {
     savedItems: WorkOrderItem[],
     gstRate: number,
     gstAmount: number,
-    grandTotal: number
+    grandTotal: number,
+    lsAmount: number = 0
   ): void {
-
     const wb = XLSX.utils.book_new();
 
-    const materialItems    = savedItems.filter(i => i.isMaterial === 'Yes');
+    const materialItems = savedItems.filter(i => i.isMaterial === 'Yes');
     const nonMaterialItems = savedItems.filter(i => i.isMaterial === 'No');
-    const materialTotal    = materialItems.reduce((s, i) => s + i.amount, 0);
+    const materialTotal = materialItems.reduce((s, i) => s + i.amount, 0);
     const nonMaterialTotal = nonMaterialItems.reduce((s, i) => s + i.amount, 0);
-    const abstractGrand    = materialTotal + nonMaterialTotal + gstAmount;
+    const abstractGrand = grandTotal || (materialTotal + nonMaterialTotal + gstAmount + lsAmount);
 
-    // ── Sheet 1: Material ──────────────────────────────────────────
     this.addItemSheet(wb, 'Material Sheet', materialItems, materialTotal);
-
-    // ── Sheet 2: Non-Material ──────────────────────────────────────
     this.addItemSheet(wb, 'Non-Material Sheet', nonMaterialItems, nonMaterialTotal);
+    this.addAbstractSheet(wb, nameOfWork, materialTotal, nonMaterialTotal, gstRate, gstAmount, lsAmount, abstractGrand);
 
-    // ── Sheet 3: Abstract ─────────────────────────────────────────
-    this.addAbstractSheet(wb, materialTotal, nonMaterialTotal, gstRate, gstAmount, abstractGrand);
-
-    // ── Download ──────────────────────────────────────────────────
     const safeName = (nameOfWork || 'Work Order').trim();
-    const fileName = `Estimate Sheet- ${safeName}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    XLSX.writeFile(wb, `Estimate Sheet- ${safeName}.xlsx`);
   }
 
   private addItemSheet(
@@ -42,25 +35,23 @@ export class ExcelExportService {
     items: WorkOrderItem[],
     total: number
   ): void {
-
     const ws = XLSX.utils.aoa_to_sheet([]);
 
-    // ── Header row ─────────────────────────────────────────────────
     const headers = [
       'Sl.No', 'Item Description', 'Numbers',
       'Length', 'Breadth', 'Depth',
-      'Quantity', 'Unit', 'Rate (₹)', 'Amount (₹)'
+      'Quantity', 'Unit', 'Rate (Rs.)', 'Amount (Rs.)'
     ];
+
     XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
 
-    // ── Data rows ──────────────────────────────────────────────────
     const rows = items.map((item, idx) => [
       idx + 1,
       item.description,
       item.numbers,
-      item.length  || '',
+      item.length || '',
       item.breadth || '',
-      item.depth   || '',
+      item.depth || '',
       item.quantity,
       item.unit,
       item.rate,
@@ -73,124 +64,116 @@ export class ExcelExportService {
       XLSX.utils.sheet_add_aoa(ws, [['No items']], { origin: 'A2' });
     }
 
-    // ── Total row ──────────────────────────────────────────────────
-    const totalRowIdx = rows.length + 2; // 1-based, after header + data
+    const totalRowIdx = rows.length + 2;
     XLSX.utils.sheet_add_aoa(ws, [
-      ['', '', '', '', '', '', '', '', 'Total Amount (₹)', total]
+      ['', '', '', '', '', '', '', '', 'Total Amount (Rs.)', total]
     ], { origin: `A${totalRowIdx}` });
 
-    // ── Column widths ──────────────────────────────────────────────
     ws['!cols'] = [
-      { wch: 7 },   // Sl.No
-      { wch: 45 },  // Description
-      { wch: 10 },  // Numbers
-      { wch: 10 },  // Length
-      { wch: 10 },  // Breadth
-      { wch: 10 },  // Depth
-      { wch: 12 },  // Quantity
-      { wch: 8 },   // Unit
-      { wch: 14 },  // Rate
-      { wch: 14 },  // Amount
+      { wch: 7 },
+      { wch: 45 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 14 },
     ];
-
-    // ── Cell styles ────────────────────────────────────────────────
-    this.styleHeaderRow(ws, headers.length);
-    this.styleTotalRow(ws, totalRowIdx, headers.length);
-    this.styleDataRows(ws, 2, rows.length, headers.length);
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   }
 
   private addAbstractSheet(
     wb: XLSX.WorkBook,
+    nameOfWork: string,
     materialTotal: number,
     nonMaterialTotal: number,
     gstRate: number,
     gstAmount: number,
+    lsAmount: number,
     abstractGrand: number
   ): void {
+    const partOneTotal = materialTotal + nonMaterialTotal;
+    const amountWords = this.amountInWords(Math.round(abstractGrand));
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['', 'GENERAL ABSTRACT', '', ''],
+      [`Name of Work: ${nameOfWork || ''}`, '', '', ''],
+      ['Sl.No', 'Description', '', 'Amount Rs.'],
+      ['', 'Part-I - Working Items', '', ''],
+      [1, 'Cost of Material', '', materialTotal],
+      [2, 'Cost of Civil work', '', nonMaterialTotal],
+      ['', 'Cost of Estimate : Part-I', '', partOneTotal],
+      ['', 'Part-II - Reimbursible Items', '', ''],
+      [3, `GST @ ${gstRate}%`, 'Rs.', gstAmount],
+      ['', '', '', ''],
+      ['', 'Part-III: LS provisions', '', ''],
+      [4, 'LS unforeseen items and rounding off', 'Rs.', lsAmount],
+      ['', '', '', ''],
+      [5, 'Grand Total (Part I + II + III)', 'Rs.', abstractGrand],
+      ['', `(Rupees ${amountWords} Only)`, '', '']
+    ]);
 
-    const headers = ['Sl.No', 'Description', 'Amount (₹)'];
-    const data = [
-      [1, 'Material Items Total',          materialTotal],
-      [2, 'Non-Material Items Total',       nonMaterialTotal],
-      [3, `GST (${gstRate}%)`,             gstAmount],
-      [4, 'LST',                            0],
+    ws['!merges'] = [
+      { s: { r: 0, c: 1 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+      { s: { r: 2, c: 1 }, e: { r: 2, c: 2 } },
+      { s: { r: 3, c: 1 }, e: { r: 3, c: 2 } },
+      { s: { r: 4, c: 1 }, e: { r: 4, c: 2 } },
+      { s: { r: 5, c: 1 }, e: { r: 5, c: 2 } },
+      { s: { r: 6, c: 1 }, e: { r: 6, c: 2 } },
+      { s: { r: 7, c: 1 }, e: { r: 7, c: 2 } },
+      { s: { r: 9, c: 1 }, e: { r: 9, c: 2 } },
+      { s: { r: 10, c: 1 }, e: { r: 10, c: 2 } },
+      { s: { r: 12, c: 1 }, e: { r: 12, c: 2 } },
+      { s: { r: 14, c: 1 }, e: { r: 14, c: 3 } }
     ];
-
-    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
-    XLSX.utils.sheet_add_aoa(ws, data, { origin: 'A2' });
-    XLSX.utils.sheet_add_aoa(ws, [
-      ['', 'Grand Total', abstractGrand]
-    ], { origin: `A${data.length + 2}` });
 
     ws['!cols'] = [
-      { wch: 7 },
-      { wch: 35 },
+      { wch: 8 },
+      { wch: 62 },
+      { wch: 8 },
       { wch: 18 },
     ];
-
-    this.styleHeaderRow(ws, 3);
-    this.styleTotalRow(ws, data.length + 2, 3);
-    this.styleDataRows(ws, 2, data.length, 3);
 
     XLSX.utils.book_append_sheet(wb, ws, 'Abstract');
   }
 
-  // ── Styling helpers ────────────────────────────────────────────
+  private amountInWords(amount: number): string {
+    if (!Number.isFinite(amount) || amount <= 0) return 'Zero';
 
-  private styleHeaderRow(ws: XLSX.WorkSheet, colCount: number): void {
-    const cols = 'ABCDEFGHIJ'.split('').slice(0, colCount);
-    cols.forEach(col => {
-      const cellRef = `${col}1`;
-      if (!ws[cellRef]) return;
-      ws[cellRef].s = {
-        font:      { bold: true, color: { rgb: 'FFFFFF' }, sz: 11, name: 'Arial' },
-        fill:      { fgColor: { rgb: '1565C0' } },
-        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-        border:    this.thinBorder()
-      };
-    });
-  }
+    const ones = [
+      '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+      'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+      'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-  private styleDataRows(ws: XLSX.WorkSheet, startRow: number, rowCount: number, colCount: number): void {
-    const cols = 'ABCDEFGHIJ'.split('').slice(0, colCount);
-    for (let r = startRow; r < startRow + rowCount; r++) {
-      const isEven = (r - startRow) % 2 === 1;
-      cols.forEach((col, ci) => {
-        const cellRef = `${col}${r}`;
-        if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-        ws[cellRef].s = {
-          font:      { sz: 11, name: 'Arial' },
-          fill:      { fgColor: { rgb: isEven ? 'EBF5FF' : 'FFFFFF' } },
-          alignment: {
-            horizontal: ci === 1 ? 'left' : (ci >= 8 ? 'right' : 'center'),
-            vertical: 'center'
-          },
-          border: this.thinBorder()
-        };
-      });
-    }
-  }
+    const twoDigits = (n: number): string => {
+      if (n < 20) return ones[n];
+      return `${tens[Math.floor(n / 10)]}${n % 10 ? ' ' + ones[n % 10] : ''}`;
+    };
 
-  private styleTotalRow(ws: XLSX.WorkSheet, rowNum: number, colCount: number): void {
-    const cols = 'ABCDEFGHIJ'.split('').slice(0, colCount);
-    cols.forEach(col => {
-      const cellRef = `${col}${rowNum}`;
-      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-      ws[cellRef].s = {
-        font:      { bold: true, sz: 12, name: 'Arial', color: { rgb: '1B5E20' } },
-        fill:      { fgColor: { rgb: 'C8E6C9' } },
-        alignment: { horizontal: 'right', vertical: 'center' },
-        border:    this.thinBorder()
-      };
-    });
-  }
+    const threeDigits = (n: number): string => {
+      const hundred = Math.floor(n / 100);
+      const rest = n % 100;
+      return `${hundred ? ones[hundred] + ' Hundred' : ''}${hundred && rest ? ' ' : ''}${rest ? twoDigits(rest) : ''}`.trim();
+    };
 
-  private thinBorder() {
-    const side = { style: 'thin', color: { rgb: 'CCCCCC' } };
-    return { top: side, bottom: side, left: side, right: side };
+    const crore = Math.floor(amount / 10000000);
+    amount %= 10000000;
+    const lakh = Math.floor(amount / 100000);
+    amount %= 100000;
+    const thousand = Math.floor(amount / 1000);
+    amount %= 1000;
+
+    return [
+      crore ? `${threeDigits(crore)} Crore` : '',
+      lakh ? `${threeDigits(lakh)} Lakh` : '',
+      thousand ? `${threeDigits(thousand)} Thousand` : '',
+      amount ? threeDigits(amount) : ''
+    ].filter(Boolean).join(' ');
   }
 }

@@ -1,0 +1,100 @@
+const express = require('express');
+const cors    = require('cors');
+require('dotenv').config();
+
+const pool = require('./db');
+const app  = express();
+
+app.use(cors());
+app.use(express.json());
+
+// ── Helper: generate 3-digit work_id ─────────────────────────────
+// Finds the max existing work_id and increments, padded to 3 digits
+async function generateWorkId(client) {
+  // Use NULLIF + REGEXP to safely cast only numeric work_ids
+  const result = await client.query(
+    `SELECT MAX(CAST(NULLIF(REGEXP_REPLACE(work_id, '[^0-9]', '', 'g'), '') AS INTEGER)) as max_id
+     FROM work_order_items`
+  );
+  const maxId = result.rows[0].max_id || 0;
+  return String(maxId + 1).padStart(3, '0');
+}
+
+// ── GET /api/items/search?q=<query> ──────────────────────────────
+app.get('/api/items/search', async (req, res) => {
+  const raw = (req.query.q || '');
+  const words = raw.toLowerCase().split(' ').map(w => w.trim()).filter(w => w.length > 0);
+  if (words.length === 0) return res.json([]);
+
+  try {
+    // Simple approach: build one query that checks each word independently
+    // Each word checked with LIKE against raw description AND cleaned description
+    // WHERE = OR of all words (any match shows result)
+    // Score = sum of matching words (for ranking)
+
+    let paramIndex = 1;
+    const params = [];
+    const scoreParts = [];
+    const whereParts = [];
+
+    for (const word of words) {
+      // clean version: remove all non-alphanumeric chars
+      const clean = word.replace(/[^a-z0-9]/g, '');
+      const likeWord  = '%' + word  + '%';
+      const likeClean = '%' + clean + '%';
+
+      params.push(likeWord);   const pi1 = paramIndex++;
+      params.push(likeClean);  const pi2 = paramIndex++;
+
+      // Match if: raw desc has word OR cleaned desc has cleaned word
+      const matchExpr = `(LOWER(item_description) LIKE $${pi1} OR LOWER(REGEXP_REPLACE(item_description,'[^a-zA-Z0-9]','','g')) LIKE $${pi2})`;
+
+      scoreParts.push(`CASE WHEN ${matchExpr} THEN 1 ELSE 0 END`);
+      whereParts.push(matchExpr);
+    }
+
+    // AND: every typed word must be found somewhere in the description
+    // This means only truly matching items appear — no partial junk
+    const sql = `
+      SELECT sl_no AS id, item_description AS description, unit, rate,
+             (${scoreParts.join(' + ')}) AS score
+      FROM finished
+      WHERE ${whereParts.join(' AND ')}
+      ORDER BY item_description
+      LIMIT 30
+    `;
+
+    const result = await pool.query(sql, params);
+    res.json(result.rows.map(r => ({
+      id: r.id, description: r.description,
+      unit: r.unit, rate: r.rate, score: Number(r.score)
+    })));
+  } catch (err) {
+    console.error('Search error:', err.message);
+    res.status(500).json({ error: 'Search failed', detail: err.message });
+  }
+});
+
+// ── GET /api/items/:slno ─────────────────────────────────────────
+app.get('/api/items/:slno', async (req, res) => {
+  const { slno } = req.params;
+  try {
+    const sql = `
+      SELECT sl_no AS id, item_description AS description, unit, rate
+      FROM finished WHERE sl_no = $1
+    `;
+    const result = await pool.query(sql, [slno]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Fetch item error:', err.message);
+    res.status(500).json({ error: 'Database error', detail: err.message });
+  }
+});
+
+// ── GET /api/items ───────────────────────────────────────────────
+app.get('/api/items', async (req, res) => {
+  try {
+    const sql = `
+      SELECT sl_no AS id, item_description AS description, unit, rate
+      FROM finished ORDER BY sl_no

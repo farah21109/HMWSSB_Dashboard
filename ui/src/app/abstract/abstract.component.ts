@@ -5,6 +5,7 @@ import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AbstractStateService } from '../work-order/abstract-state.service';
 import { AuthService } from '../login/auth.service';
+import { ExcelExportService } from '../work-order/excel-export.service';
 
 @Component({
   selector: 'app-abstract',
@@ -15,7 +16,7 @@ import { AuthService } from '../login/auth.service';
 })
 export class AbstractComponent implements OnInit {
 
-  private apiBase = 'http://localhost:3000/api';
+  private apiBase = 'http://localhost:3001/api';
 
   nameOfWork: string = '';
   division:   string = '';
@@ -49,7 +50,8 @@ export class AbstractComponent implements OnInit {
     private stateService: AbstractStateService,
     private http: HttpClient,
     private router: Router,
-    private auth: AuthService
+    private auth: AuthService,
+    private excelExport: ExcelExportService
   ) {}
 
   get userName()        { return this.auth.getSession()?.name        || ''; }
@@ -150,6 +152,20 @@ export class AbstractComponent implements OnInit {
     this.http.post<any>(`${this.apiBase}/save-abstract`, payload).subscribe({
       next: () => { if (onDone) onDone(); },
       error: () => { if (onDone) onDone(); }
+    });
+  }
+
+  generateExcel(): void {
+    this.recalcGrandTotal();
+    this.saveAbstractToDB(() => {
+      this.excelExport.generateEstimateSheet(
+        this.nameOfWork,
+        this.savedItems,
+        this.gstRate,
+        this.gstAmount,
+        this.grandTotal,
+        this.lsAmount || 0
+      );
     });
   }
 

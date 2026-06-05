@@ -262,6 +262,42 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
+    const assignmentColumns = {
+      Manager:  { key: 'manager_key',  name: 'manager_name',  contact: 'manager_contact' },
+      DGM:      { key: 'dgm_key',      name: 'dgm_name',      contact: 'dgm_contact' },
+      GM:       { key: 'gm_key',       name: 'gm_name',       contact: 'gm_contact' },
+      CGM:      { key: 'cgm_key',      name: 'cgm_name',      contact: 'cgm_contact' },
+      Director: { key: 'director_key', name: 'director_name', contact: 'director_contact' }
+    };
+    const officerColumns = assignmentColumns[user.designation] || null;
+    let assignedWard = user.ward || null;
+    let assignedCircle = user.circle || null;
+    let assignedDivision = user.division || null;
+
+    if (officerColumns) {
+      const assigned = await pool.query(
+        `SELECT DISTINCT ward, circle, division
+         FROM jurisdiction
+         WHERE ${officerColumns.key} = $1
+            OR LOWER(${officerColumns.name}) = LOWER($2)
+            OR ${officerColumns.contact} = $3
+         ORDER BY division, circle, ward`,
+        [user.username, user.name || '', user.contact_number || '']
+      );
+
+      if (assigned.rows.length > 0) {
+        const uniqueList = (field) => [...new Set(
+          assigned.rows
+            .map(row => (row[field] || '').toString().trim())
+            .filter(Boolean)
+        )].join(', ');
+
+        assignedWard = uniqueList('ward') || assignedWard;
+        assignedCircle = uniqueList('circle') || assignedCircle;
+        assignedDivision = uniqueList('division') || assignedDivision;
+      }
+    }
+
     res.json({
       success: true,
       user: {
@@ -270,9 +306,9 @@ app.post('/api/login', async (req, res) => {
         username:      user.username,
         designation:   user.designation,
         department:    user.department,
-        ward:          user.ward     || null,
-        circle:        user.circle   || null,
-        division:      user.division || null,
+        ward:          assignedWard     || null,
+        circle:        assignedCircle   || null,
+        division:      assignedDivision || null,
         contactNumber: user.contact_number
       }
     });

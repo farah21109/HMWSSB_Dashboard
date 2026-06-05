@@ -17,7 +17,8 @@ export class HomeComponent {
   get userName()        { return this.auth.getSession()?.name        || ''; }
   get userDesignation() { return this.auth.getSession()?.designation || ''; }
   get userDepartment()  { return this.auth.getSession()?.department  || ''; }
-  get userWard()        { return this.auth.getSession()?.ward        || '—'; }
+  get userWard()        { return this.auth.getSession()?.ward        || ''; }
+  get isManager()       { return this.userDesignation.toLowerCase() === 'manager'; }
 
   goToPrepareEstimate(): void {
     this.router.navigate(['/prepare-estimate']);

@@ -1,3 +1,4 @@
+
 <!-- Top Navbar -->
 <div class="top-navbar">
   <div class="navbar-left">
@@ -19,7 +20,8 @@
   <div class="welcome-banner">
     <div class="welcome-text">
       <h2>Welcome, {{ userName }}</h2>
-      <p>{{ userDesignation }}<span *ngIf="userWard">&nbsp;|&nbsp; {{ userWard }}</span></p>
+      <p>{{ userDesignation }}</p>
+      <p class="manager-ward" *ngIf="isManager && userWard">Ward: {{ userWard }}</p>
     </div>
     <div class="welcome-icon">&#127963;</div>
   </div>

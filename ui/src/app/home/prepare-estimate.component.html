@@ -150,8 +150,7 @@
       <div class="banner-text">
         <strong>Edit Mode</strong>
         <span>Work ID <strong>{{ existingWorkId }}</strong> is at your stage
-          <strong>{{ userDesignation }}</strong>. You can edit and submit to
-          <strong>{{ myNextStage }}</strong>.
+          <strong>{{ userDesignation }}</strong>. You can edit and submit this work.
         </span>
       </div>
     </div>
@@ -184,20 +183,20 @@
 
     <div class="dropdown-row">
       <div class="dropdown-field">
-        <label>Circle</label>
-        <select [ngModel]="selectedCircle" name="circle" class="dropdown-select"
-                (change)="onCircleChange($any($event.target).value)">
-          <option value="">-- Select Circle --</option>
-          <option *ngFor="let c of circles" [value]="c">{{ c }}</option>
+        <label>Division</label>
+        <select [ngModel]="selectedDivision" name="division" class="dropdown-select"
+                (change)="onDivisionChange($any($event.target).value)">
+          <option value="">-- Select Division --</option>
+          <option *ngFor="let d of divisions" [value]="d">Division {{ d }}</option>
         </select>
       </div>
       <div class="dropdown-field">
-        <label>Division</label>
-        <select [ngModel]="selectedDivision" name="division" class="dropdown-select"
-                (change)="onDivisionChange($any($event.target).value)"
-                [disabled]="!selectedCircle">
-          <option value="">-- Select Division --</option>
-          <option *ngFor="let d of divisions" [value]="d">Division {{ d }}</option>
+        <label>Circle</label>
+        <select [ngModel]="selectedCircle" name="circle" class="dropdown-select"
+                (change)="onCircleChange($any($event.target).value)"
+                [disabled]="!selectedDivision">
+          <option value="">-- Select Circle --</option>
+          <option *ngFor="let c of circles" [value]="c">{{ c }}</option>
         </select>
       </div>
       <div class="dropdown-field">
@@ -231,26 +230,72 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let item of savedItems; let i = index; trackBy: trackByIndex" class="saved-row">
-            <td class="center">{{ item.sNo }}</td>
-            <td>{{ item.description }}</td>
-            <td class="center">{{ item.numbers }}</td>
-            <td class="center">{{ item.length  || '-' }}</td>
-            <td class="center">{{ item.breadth || '-' }}</td>
-            <td class="center">{{ item.depth   || '-' }}</td>
-            <td class="center">{{ item.quantity }}</td>
-            <td class="center">{{ item.rate }}</td>
-            <td class="center">{{ item.unit }}</td>
-            <td class="center">{{ item.amount | number:'1.2-2' }}</td>
-            <td class="center">{{ item.isMaterial }}</td>
-            <td class="center">
-              <button class="btn-edit-row" (click)="onEdit(i)">Edit</button>
-              <button class="btn-delete-row" (click)="onDelete(i)">Delete</button>
-            </td>
-          </tr>
+          <ng-container *ngFor="let item of savedItems; let i = index; trackBy: trackByIndex">
+            <tr *ngIf="editingIndex !== i" class="saved-row">
+              <td class="center">{{ item.sNo }}</td>
+              <td>{{ item.description }}</td>
+              <td class="center">{{ item.numbers }}</td>
+              <td class="center">{{ item.length  || '-' }}</td>
+              <td class="center">{{ item.breadth || '-' }}</td>
+              <td class="center">{{ item.depth   || '-' }}</td>
+              <td class="center">{{ item.quantity }}</td>
+              <td class="center">{{ item.rate }}</td>
+              <td class="center">{{ item.unit }}</td>
+              <td class="center">{{ item.amount | number:'1.2-2' }}</td>
+              <td class="center">{{ item.isMaterial }}</td>
+              <td class="center">
+                <button class="btn-edit-row" (click)="onEdit(i)">Edit</button>
+                <button class="btn-delete-row" (click)="onDelete(i)">Delete</button>
+              </td>
+            </tr>
+
+            <tr *ngIf="editingIndex === i" class="edit-row">
+              <td class="center">{{ currentItem.sNo }}</td>
+              <td class="desc-cell">
+                <div class="autocomplete-wrapper">
+                  <input type="text" [(ngModel)]="currentItem.description"
+                    (input)="onDescriptionInput()"
+                    name="descriptionEdit" class="input-description" placeholder="Type to search..." autocomplete="off" />
+                  <span *ngIf="isLoadingSuggestions" class="loading-dots">...</span>
+                  <ul class="suggestions-list" *ngIf="showDropdown && suggestions.length > 0">
+                    <li *ngFor="let s of suggestions" (mousedown)="onSelectSuggestion(s)"
+                        class="suggestion-item">
+                      <span class="sug-desc" [innerHTML]="highlightMatch(s.description)"></span>
+                      <span class="sug-meta">{{ s.unit }} | &#8377;{{ s.rate }}</span>
+                    </li>
+                  </ul>
+                  <div class="sug-hint" *ngIf="showDropdown && suggestions.length > 0">
+                    {{ suggestions.length }} result{{ suggestions.length > 1 ? 's' : '' }} - sorted by relevance
+                  </div>
+                </div>
+              </td>
+              <td><input type="number" [(ngModel)]="currentItem.numbers"  (ngModelChange)="onDimensionChange()" name="numbersEdit"  class="input-dim" min="0" /></td>
+              <td><input type="number" [(ngModel)]="currentItem.length"   (ngModelChange)="onDimensionChange()" name="lengthEdit"   class="input-dim" min="0" /></td>
+              <td><input type="number" [(ngModel)]="currentItem.breadth"  (ngModelChange)="onDimensionChange()" name="breadthEdit"  class="input-dim" min="0" /></td>
+              <td><input type="number" [(ngModel)]="currentItem.depth"    (ngModelChange)="onDimensionChange()" name="depthEdit"    class="input-dim" min="0" /></td>
+              <td><input type="number" [(ngModel)]="currentItem.quantity" (ngModelChange)="onQuantityChange()"  name="quantityEdit" class="input-dim" min="0" /></td>
+              <td><input type="number" [(ngModel)]="currentItem.rate"     (ngModelChange)="onRateChange()"      name="rateEdit"     class="input-dim" min="0" /></td>
+              <td><input type="text"   [(ngModel)]="currentItem.unit"     name="unitEdit"     class="input-unit" /></td>
+              <td><input type="number" [(ngModel)]="currentItem.amount"   name="amountEdit"   class="input-dim" min="0" /></td>
+              <td class="radio-cell">
+                <label class="radio-label">
+                  <input type="radio" [(ngModel)]="currentItem.isMaterial" name="isMaterialEdit" value="Yes" />
+                  Yes
+                </label>
+                <label class="radio-label">
+                  <input type="radio" [(ngModel)]="currentItem.isMaterial" name="isMaterialEdit" value="No" />
+                  No
+                </label>
+              </td>
+              <td class="center">
+                <button class="btn-add" (click)="onAdd()">Update</button>
+                <button class="btn-cancel" (click)="onCancel()">Cancel</button>
+              </td>
+            </tr>
+          </ng-container>
 
           <!-- Input row -->
-          <tr class="edit-row">
+          <tr class="edit-row" *ngIf="editingIndex < 0">
             <td class="center">{{ currentItem.sNo }}</td>
             <td class="desc-cell">
               <div class="autocomplete-wrapper">
@@ -338,7 +383,7 @@
         &#128196; Generate Abstract
       </button>
       <button class="btn-submit-work" (click)="openSubmitDialog()">
-        &#9650; Submit to {{ myNextStage || 'Next Level' }}
+        &#9650; Submit
       </button>
     </div>
 
@@ -348,7 +393,7 @@
 <!-- Submit Dialog -->
 <div class="dialog-overlay" *ngIf="showSubmitDialog" (click)="closeSubmitDialog()">
   <div class="dialog-box" (click)="$event.stopPropagation()">
-    <div class="dialog-header">Submit to {{ myNextStage }}</div>
+    <div class="dialog-header">Submit</div>
     <div class="dialog-body">
       <p class="dialog-work-name">{{ nameOfWork }}</p>
       <p style="font-size:12px;color:#666;margin:0 0 12px">Work ID: <strong>{{ existingWorkId }}</strong></p>
@@ -362,7 +407,7 @@
     <div class="dialog-footer">
       <button class="btn-cancel-dialog" (click)="closeSubmitDialog()" [disabled]="isSubmitting">Cancel</button>
       <button class="btn-confirm-submit" (click)="onSubmit()" [disabled]="isSubmitting">
-        <span *ngIf="!isSubmitting">Submit to {{ myNextStage }}</span>
+        <span *ngIf="!isSubmitting">Submit</span>
         <span *ngIf="isSubmitting">Submitting...</span>
       </button>
     </div>

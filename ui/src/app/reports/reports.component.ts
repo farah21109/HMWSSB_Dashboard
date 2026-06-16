@@ -1,88 +1,123 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../login/auth.service';
+import { AbstractStateService } from '../work-order/abstract-state.service';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [CommonModule, HttpClientModule],
   templateUrl: './reports.component.html',
   styleUrls: ['./reports.component.css']
 })
-export class ReportsComponent {
-
+export class ReportsComponent implements OnInit {
   private apiBase = 'http://localhost:3000/api';
 
-  workIdInput: string  = '';
-  isSearching: boolean = false;
-  searchError: string  = '';
-  reportLoaded: boolean = false;
-
-  workInfo:    any    = null;
-  abstract:    any    = null;
-  items:       any[]  = [];
-
-  materialItems:   any[] = [];
-  civilWorksItems: any[] = [];
-  materialTotal:   number = 0;
-  civilWorksTotal: number = 0;
+  worksList: any[] = [];
+  isLoading = false;
+  error = '';
 
   constructor(
-    private auth:   AuthService,
-    private http:   HttpClient,
-    private router: Router
+    private auth: AuthService,
+    private http: HttpClient,
+    private router: Router,
+    private stateService: AbstractStateService
   ) {}
 
-  get userName()        { return this.auth.getSession()?.name        || ''; }
-  get userDesignation() { return this.auth.getSession()?.designation || ''; }
+  get user()            { return this.auth.getSession(); }
+  get userName()        { return this.user?.name || ''; }
+  get userDesignation() { return this.user?.designation || ''; }
 
-  onSearch(): void {
-    if (!this.workIdInput.trim()) { this.searchError = 'Please enter a Work ID.'; return; }
+  ngOnInit(): void {
+    this.loadWorksList();
+  }
 
-    this.isSearching  = true;
-    this.searchError  = '';
-    this.reportLoaded = false;
+  loadWorksList(): void {
+    this.isLoading = true;
+    this.error = '';
 
-    this.http.get<any>(`${this.apiBase}/works/by-name?q=${encodeURIComponent(this.workIdInput.trim())}`).subscribe({
-      next: (res) => {
-        if (!res || !res.work_id) {
-          this.isSearching = false;
-          this.searchError = 'Work ID not found.';
-          return;
-        }
+    const stage = encodeURIComponent(this.userDesignation);
+    const submittedBy = encodeURIComponent(this.userName);
+    this.http.get<any[]>(`${this.apiBase}/works?stage=${stage}&submittedBy=${submittedBy}`).subscribe({
+      next: (works) => {
+        this.worksList = works || [];
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.error = err?.error?.detail || 'Could not load works list.';
+        this.isLoading = false;
+      }
+    });
+  }
 
-        this.workInfo = res;
+  openEstimate(work: any): void {
+    this.router.navigate(['/prepare-estimate'], { state: { workId: work.work_id } });
+  }
 
-        // Load items and abstract in parallel
-        this.http.get<any[]>(`${this.apiBase}/works/${res.work_id}/items`).subscribe({
-          next: (items) => {
-            this.items           = items;
-            this.materialItems   = items.filter(i => i.is_material);
-            this.civilWorksItems = items.filter(i => !i.is_material);
-            this.materialTotal   = parseFloat(this.materialItems.reduce((s, i) => s + Number(i.amount), 0).toFixed(2));
-            this.civilWorksTotal = parseFloat(this.civilWorksItems.reduce((s, i) => s + Number(i.amount), 0).toFixed(2));
+  openAbstract(work: any, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.error = '';
 
-            this.http.get<any>(`${this.apiBase}/works/${res.work_id}/abstract`).subscribe({
-              next: (abs) => {
-                this.abstract     = abs;
-                this.isSearching  = false;
-                this.reportLoaded = true;
-              },
-              error: () => {
-                this.abstract     = null;
-                this.isSearching  = false;
-                this.reportLoaded = true;
-              }
-            });
-          },
-          error: () => { this.isSearching = false; this.searchError = 'Failed to load items.'; }
+    this.http.get<any[]>(`${this.apiBase}/works/${work.work_id}/items`).subscribe({
+      next: (items) => {
+        this.http.get<any>(`${this.apiBase}/works/${work.work_id}/abstract`).subscribe({
+          next: (abstract) => this.navigateToAbstract(work, items, abstract),
+          error: () => this.navigateToAbstract(work, items, null)
         });
       },
-      error: () => { this.isSearching = false; this.searchError = 'Work ID not found.'; }
+      error: (err) => {
+        this.error = err?.error?.detail || 'Could not open this work.';
+      }
     });
+  }
+
+  private navigateToAbstract(work: any, items: any[], abstract: any): void {
+    const savedItems = (items || []).map((item, index) => ({
+      sNo: item.sl_no || index + 1,
+      description: item.description,
+      numbers: Number(item.numbers) || 0,
+      length: Number(item.length) || 0,
+      breadth: Number(item.breadth) || 0,
+      depth: Number(item.depth) || 0,
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || '',
+      rate: Number(item.rate) || 0,
+      amount: Number(item.amount) || 0,
+      isMaterial: item.is_material ? 'Yes' : 'No'
+    }));
+
+    const materialTotal = savedItems
+      .filter(item => item.isMaterial === 'Yes')
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const civilWorksTotal = savedItems
+      .filter(item => item.isMaterial === 'No')
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+
+    const gstRate = Number(abstract?.gst_rate) || 0;
+    const gstAmount = Number(abstract?.gst_amount) || 0;
+    const grandTotal = Number(abstract?.grand_total) || materialTotal + civilWorksTotal + gstAmount;
+
+    this.stateService.setState({
+      nameOfWork: work.name_of_work,
+      division: work.division || '',
+      circle: work.circle || '',
+      ward: work.ward || '',
+      savedItems,
+      gstRate,
+      gstAmount,
+      grandTotal,
+      workId: work.work_id,
+      viewOnly: work.display_status === 'submitted',
+      canEdit: work.display_status !== 'submitted',
+      fromPage: 'reports'
+    });
+    this.router.navigate(['/abstract']);
+  }
+
+  statusLabel(work: any): string {
+    return work.display_status === 'submitted' ? 'Submitted' : 'Yet to Submit';
   }
 
   goBack(): void { this.router.navigate(['/home']); }

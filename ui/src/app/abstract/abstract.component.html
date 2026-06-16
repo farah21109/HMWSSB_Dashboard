@@ -28,14 +28,14 @@
         <span *ngIf="ward">Ward: {{ ward }}</span>
       </div>
     </div>
-    <div class="toolbar-actions">
-      <button class="btn-generate-excel" (click)="generateExcel()">Generate Excel</button>
-    </div>
   </div>
 
   <div class="readonly-notice" *ngIf="viewOnly && !canEditAbstract">
     &#128274; This work has been submitted. You are in view-only mode.
   </div>
+
+  <div class="alert-success" *ngIf="submitSuccess">{{ submitSuccess }}</div>
+  <div class="alert-error" *ngIf="submitError">{{ submitError }}</div>
 
   <div class="abstract-sheet">
     <table class="general-abstract-table">
@@ -125,5 +125,16 @@
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="abstract-actions">
+    <button class="btn-generate-excel" (click)="generateExcel()">Generate Excel</button>
+    <button
+      class="btn-submit-abstract"
+      *ngIf="canEditAbstract && !viewOnly"
+      (click)="submitAbstract()"
+      [disabled]="isSubmitting">
+      {{ isSubmitting ? 'Submitting...' : 'Submit' }}
+    </button>
   </div>
 </div>

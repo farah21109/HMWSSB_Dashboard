@@ -16,7 +16,7 @@ import { ExcelExportService } from '../work-order/excel-export.service';
 })
 export class AbstractComponent implements OnInit {
 
-  private apiBase = 'http://localhost:3001/api';
+  private apiBase = 'http://localhost:3000/api';
 
   nameOfWork: string = '';
   division:   string = '';
@@ -45,6 +45,9 @@ export class AbstractComponent implements OnInit {
   saveSuccess: boolean = false;
   saveError:   string  = '';
   generatedWorkId: string = '';
+  isSubmitting: boolean = false;
+  submitSuccess: string = '';
+  submitError: string = '';
 
   constructor(
     private stateService: AbstractStateService,
@@ -133,7 +136,7 @@ export class AbstractComponent implements OnInit {
   }
 
   // ── Save abstract to DB silently (called on LS change & on submit) ──
-  saveAbstractToDB(onDone?: () => void): void {
+  saveAbstractToDB(onDone?: (success: boolean, error?: any) => void): void {
     if (!this.workId && !this.nameOfWork) return;
 
     const payload = {
@@ -150,8 +153,8 @@ export class AbstractComponent implements OnInit {
 
     // Use upsert endpoint — insert or update if work_id already exists
     this.http.post<any>(`${this.apiBase}/save-abstract`, payload).subscribe({
-      next: () => { if (onDone) onDone(); },
-      error: () => { if (onDone) onDone(); }
+      next: () => { if (onDone) onDone(true); },
+      error: (err) => { if (onDone) onDone(false, err); }
     });
   }
 
@@ -166,6 +169,45 @@ export class AbstractComponent implements OnInit {
         this.grandTotal,
         this.lsAmount || 0
       );
+    });
+  }
+
+  submitAbstract(): void {
+    this.submitSuccess = '';
+    this.submitError = '';
+
+    if (!this.workId) {
+      this.submitError = 'Work ID is missing. Please go back and generate the abstract again.';
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.recalcGrandTotal();
+
+    this.saveAbstractToDB((saved, saveErr) => {
+      if (!saved) {
+        this.isSubmitting = false;
+        this.submitError = saveErr?.error?.detail || 'Could not save abstract before submitting.';
+        return;
+      }
+
+      this.http.post<any>(`${this.apiBase}/works/${this.workId}/submit`, {
+        submittedBy: this.userName,
+        designation: this.userDesignation,
+        remarks: ''
+      }).subscribe({
+        next: () => {
+          this.isSubmitting = false;
+          this.submitSuccess = 'Submitted successfully.';
+          this.viewOnly = true;
+          this.canEditAbstract = false;
+          this.clearDraft();
+        },
+        error: (err) => {
+          this.isSubmitting = false;
+          this.submitError = err?.error?.detail || err?.error?.error || 'Submit failed.';
+        }
+      });
     });
   }
 

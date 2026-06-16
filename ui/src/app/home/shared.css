@@ -394,8 +394,10 @@ input[type="number"] { -moz-appearance: textfield; }
 /* ── Is Material radio buttons ── */
 .radio-cell {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 4px 6px;
 }
 .radio-label {

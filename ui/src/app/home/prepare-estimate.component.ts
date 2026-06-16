@@ -58,57 +58,55 @@ export class PrepareEstimateComponent implements OnInit {
     return val.split(',').map(v => v.trim()).filter(v => v.length > 0);
   }
 
+  private circlesForDivision(division: string): string[] {
+    if (!division) return ALL_CIRCLES;
+    return ALL_CIRCLES.filter(circle => (CIRCLE_DIVISIONS[circle] || []).includes(division));
+  }
+
   // Called once on init — set up dropdowns based on user's assignments
   initLocationDropdowns(): void {
-    const userCircles   = this.splitField(this.user?.circle);
     const userDivisions = this.splitField(this.user?.division);
     const userWards     = this.splitField(this.user?.ward);
 
-    // Show only user's assigned values; fall back to all if none assigned (Director/CGM/GM)
-    this.circles   = userCircles.length   > 0 ? userCircles   : ALL_CIRCLES;
+    // Division is selected first; circles are then filtered under that division.
     this.divisions = userDivisions.length > 0 ? userDivisions : ALL_DIVISIONS;
-    this.wards     = userWards.length     > 0 ? userWards     : ALL_WARDS;
+    this.circles   = [];
+    this.wards     = userWards.length > 0 ? userWards : ALL_WARDS;
 
     // Auto-select if only one option
-    if (this.circles.length   === 1) this.selectedCircle   = this.circles[0];
     if (this.divisions.length === 1) this.selectedDivision = this.divisions[0];
-    if (this.wards.length     === 1) this.selectedWard     = this.wards[0];
+    if (this.selectedDivision) this.setCirclesAndWardsForDivision();
+    if (this.circles.length === 1) this.selectedCircle = this.circles[0];
+    if (this.wards.length === 1) this.selectedWard = this.wards[0];
   }
 
   onCircleChange(value: string): void {
     this.selectedCircle   = value;
-    const userDivisions   = this.splitField(this.user?.division);
-    const circleDivs      = CIRCLE_DIVISIONS[value] || ALL_DIVISIONS;
-    // Filter to user's divisions if assigned, else use circle's divisions
-    this.divisions        = userDivisions.length > 0
-      ? circleDivs.filter(d => userDivisions.includes(d))
-      : circleDivs;
-    if (this.divisions.length === 0) this.divisions = circleDivs;
-    this.selectedDivision = this.divisions.length === 1 ? this.divisions[0] : '';
-    this.selectedWard     = '';
-    if (this.selectedDivision) {
-      const userWards  = this.splitField(this.user?.ward);
-      const divWards   = DIVISION_WARDS[this.selectedDivision] || ALL_WARDS;
-      this.wards       = userWards.length > 0 ? divWards.filter(w => userWards.includes(w)) : divWards;
-      if (this.wards.length === 0) this.wards = divWards;
-      if (this.wards.length === 1) this.selectedWard = this.wards[0];
-    } else {
-      const userWards = this.splitField(this.user?.ward);
-      this.wards = userWards.length > 0 ? userWards : ALL_WARDS;
-    }
     this.saveDraft();
   }
 
   onDivisionChange(value: string): void {
     this.selectedDivision = value;
+    this.setCirclesAndWardsForDivision();
+    this.saveDraft();
+  }
+
+  private setCirclesAndWardsForDivision(): void {
+    const userCircles = this.splitField(this.user?.circle);
     const userWards       = this.splitField(this.user?.ward);
-    const divWards        = DIVISION_WARDS[value] || ALL_WARDS;
+    const divCircles      = this.circlesForDivision(this.selectedDivision);
+    this.circles          = userCircles.length > 0
+      ? divCircles.filter(c => userCircles.includes(c))
+      : divCircles;
+    if (this.circles.length === 0) this.circles = divCircles;
+    this.selectedCircle   = this.circles.length === 1 ? this.circles[0] : '';
+
+    const divWards        = DIVISION_WARDS[this.selectedDivision] || ALL_WARDS;
     this.wards            = userWards.length > 0
       ? divWards.filter(w => userWards.includes(w))
       : divWards;
     if (this.wards.length === 0) this.wards = divWards;
     this.selectedWard     = this.wards.length === 1 ? this.wards[0] : '';
-    this.saveDraft();
   }
 
   onWardChange(): void { this.saveDraft(); }
@@ -118,6 +116,7 @@ export class PrepareEstimateComponent implements OnInit {
 
   savedItems:  any[] = [];
   currentItem: any   = this.createEmptyItem(1);
+  editingIndex: number = -1;
   totals = { totalAmount: 0, gst: 0, grandTotal: 0 };
 
   // ── Autocomplete ──────────────────────────────────────────────
@@ -166,6 +165,11 @@ export class PrepareEstimateComponent implements OnInit {
   ngOnInit(): void {
     this.initLocationDropdowns();  // set up dropdowns from user's assigned areas
     this.restoreDraft();
+    const navWorkId = history.state?.workId;
+    if (navWorkId) {
+      this.workIdInput = navWorkId;
+      setTimeout(() => this.onCheckWorkId(), 0);
+    }
   }
 
   // ── Auto-save draft to localStorage ──────────────────────────
@@ -203,8 +207,13 @@ export class PrepareEstimateComponent implements OnInit {
       this.selectedCircle   = draft.selectedCircle   || '';
       this.selectedWard     = draft.selectedWard     || '';
       // Restore cascaded lists
-      if (this.selectedCircle)   this.divisions = CIRCLE_DIVISIONS[this.selectedCircle]   || [];
-      if (this.selectedDivision) this.wards     = DIVISION_WARDS[this.selectedDivision]   || [];
+      if (this.selectedDivision) {
+        const restoredCircle = this.selectedCircle;
+        const restoredWard = this.selectedWard;
+        this.setCirclesAndWardsForDivision();
+        if (restoredCircle && this.circles.includes(restoredCircle)) this.selectedCircle = restoredCircle;
+        if (restoredWard && this.wards.includes(restoredWard)) this.selectedWard = restoredWard;
+      }
       this.selectedGstRate  = draft.selectedGstRate  || 0;
       this.savedItems       = draft.savedItems       || [];
       this.existingWorkId   = draft.existingWorkId   || '';
@@ -264,8 +273,13 @@ export class PrepareEstimateComponent implements OnInit {
           this.selectedCircle   = res.circle   || '';
           this.selectedWard     = res.ward      || '';
           // Restore cascaded lists from loaded data
-          if (this.selectedCircle)   this.divisions = CIRCLE_DIVISIONS[this.selectedCircle]   || [];
-          if (this.selectedDivision) this.wards     = DIVISION_WARDS[this.selectedDivision]   || [];
+          if (this.selectedDivision) {
+            const loadedCircle = this.selectedCircle;
+            const loadedWard = this.selectedWard;
+            this.setCirclesAndWardsForDivision();
+            if (loadedCircle && this.circles.includes(loadedCircle)) this.selectedCircle = loadedCircle;
+            if (loadedWard && this.wards.includes(loadedWard)) this.selectedWard = loadedWard;
+          }
           // Store last submission info
           if (res.last_submitted_at) {
             const d = new Date(res.last_submitted_at);
@@ -385,10 +399,55 @@ export class PrepareEstimateComponent implements OnInit {
   onRateChange():     void { this.currentItem.amount = parseFloat((this.currentItem.quantity * this.currentItem.rate).toFixed(2)); }
   onQuantityChange(): void { this.currentItem.amount = parseFloat((this.currentItem.quantity * this.currentItem.rate).toFixed(2)); }
 
-  onAdd(): void    { this.savedItems.push({ ...this.currentItem }); this.currentItem = this.createEmptyItem(this.savedItems.length + 1); this.refreshTotals(); this.saveDraft(); }
-  onCancel(): void { this.currentItem = this.createEmptyItem(this.savedItems.length + 1); }
-  onDelete(i: number): void { this.savedItems.splice(i, 1); this.savedItems.forEach((item, idx) => item.sNo = idx + 1); this.currentItem.sNo = this.savedItems.length + 1; this.refreshTotals(); this.saveDraft(); }
-  onEdit(i: number): void   { this.currentItem = { ...this.savedItems[i] }; this.savedItems.splice(i, 1); this.savedItems.forEach((item, idx) => item.sNo = idx + 1); this.currentItem.sNo = this.savedItems.length + 1; this.refreshTotals(); this.saveDraft(); }
+  onAdd(): void {
+    if (this.editingIndex >= 0) {
+      this.savedItems[this.editingIndex] = {
+        ...this.currentItem,
+        sNo: this.editingIndex + 1
+      };
+      this.editingIndex = -1;
+    } else {
+      this.savedItems.push({
+        ...this.currentItem,
+        sNo: this.savedItems.length + 1
+      });
+    }
+
+    this.currentItem = this.createEmptyItem(this.savedItems.length + 1);
+    this.refreshTotals();
+    this.saveDraft();
+  }
+
+  onCancel(): void {
+    this.editingIndex = -1;
+    this.currentItem = this.createEmptyItem(this.savedItems.length + 1);
+  }
+
+  onDelete(i: number): void {
+    this.savedItems.splice(i, 1);
+    this.savedItems.forEach((item, idx) => item.sNo = idx + 1);
+
+    if (this.editingIndex === i) {
+      this.editingIndex = -1;
+      this.currentItem = this.createEmptyItem(this.savedItems.length + 1);
+    } else if (this.editingIndex > i) {
+      this.editingIndex -= 1;
+      this.currentItem.sNo = this.editingIndex + 1;
+    } else {
+      this.currentItem.sNo = this.editingIndex >= 0 ? this.editingIndex + 1 : this.savedItems.length + 1;
+    }
+
+    this.refreshTotals();
+    this.saveDraft();
+  }
+
+  onEdit(i: number): void {
+    this.editingIndex = i;
+    this.currentItem = {
+      ...this.savedItems[i],
+      sNo: i + 1
+    };
+  }
 
   onGstRateChange():     void { this.totals.gst = parseFloat((this.totals.totalAmount * this.selectedGstRate / 100).toFixed(2)); this.totals.grandTotal = parseFloat((this.totals.totalAmount + this.totals.gst).toFixed(2)); this.saveDraft(); }
   onTotalAmountChange(): void { this.onGstRateChange(); }

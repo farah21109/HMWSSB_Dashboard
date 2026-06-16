@@ -111,7 +111,14 @@ export class EditEstimateComponent implements OnInit {
   get myStage()         { return STAGE_FLOW[this.userDesignation] || ''; }
   get nextStage()       { return NEXT_STAGE[this.myStage] || ''; }
 
-  ngOnInit(): void { this.loadWorksList(); }
+  ngOnInit(): void {
+    this.loadWorksList();
+    const navWorkId = history.state?.workId;
+    if (navWorkId) {
+      this.workIdInput = navWorkId;
+      setTimeout(() => this.onCheckWorkId(), 0);
+    }
+  }
 
   loadWorksList(): void {
     this.isLoadingList = true;

@@ -714,9 +714,15 @@ app.get('/api/works', async (req, res) => {
       SELECT DISTINCT ON (w.work_id)
         w.work_id, w.name_of_work, w.division, w.circle, w.ward,
         w.current_stage, w.created_at,
+        COALESCE(a.grand_total, t.total_amount, 0) AS amount,
         s.submitted_at, s.from_stage, s.to_stage, s.submitted_by AS last_submitted_by,
         'in_progress' AS display_status
       FROM work_order_items w
+      LEFT JOIN abstracts a ON a.work_id = w.work_id
+      LEFT JOIN (
+        SELECT work_id, SUM(amount) AS total_amount
+        FROM work_order_items GROUP BY work_id
+      ) t ON t.work_id = w.work_id
       LEFT JOIN (
         SELECT DISTINCT ON (work_id) work_id, submitted_at, from_stage, to_stage, submitted_by
         FROM work_submissions ORDER BY work_id, submitted_at DESC
@@ -732,9 +738,15 @@ app.get('/api/works', async (req, res) => {
       SELECT DISTINCT ON (w.work_id)
         w.work_id, w.name_of_work, w.division, w.circle, w.ward,
         w.current_stage, w.created_at,
+        COALESCE(a.grand_total, t.total_amount, 0) AS amount,
         s.submitted_at, s.from_stage, s.to_stage, s.submitted_by AS last_submitted_by,
         'submitted' AS display_status
       FROM work_order_items w
+      LEFT JOIN abstracts a ON a.work_id = w.work_id
+      LEFT JOIN (
+        SELECT work_id, SUM(amount) AS total_amount
+        FROM work_order_items GROUP BY work_id
+      ) t ON t.work_id = w.work_id
       INNER JOIN (
         SELECT DISTINCT ON (work_id) work_id, submitted_at, from_stage, to_stage, submitted_by
         FROM work_submissions

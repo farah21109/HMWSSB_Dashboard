@@ -42,11 +42,21 @@
   font-size: 13px;
 }
 
-.toolbar-actions {
+.toolbar-actions,
+.abstract-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 12px;
 }
 
-.btn-generate-excel {
+.abstract-actions {
+  justify-content: flex-end;
+  padding: 12px 0 0;
+}
+
+.btn-generate-excel,
+.btn-submit-abstract {
   background-color: #2e7d32;
   color: white;
   padding: 9px 22px;
@@ -61,6 +71,19 @@
 
 .btn-generate-excel:hover {
   background-color: #1b5e20;
+}
+
+.btn-submit-abstract {
+  background-color: #1565c0;
+}
+
+.btn-submit-abstract:hover {
+  background-color: #0d47a1;
+}
+
+.btn-submit-abstract:disabled {
+  background-color: #90caf9;
+  cursor: not-allowed;
 }
 
 .readonly-notice {
@@ -221,11 +244,15 @@ input[type="number"] {
     flex-direction: column;
   }
 
-  .toolbar-actions {
+  .toolbar-actions,
+  .abstract-actions {
     padding-top: 0;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .btn-generate-excel {
+  .btn-generate-excel,
+  .btn-submit-abstract {
     width: 100%;
   }
 }

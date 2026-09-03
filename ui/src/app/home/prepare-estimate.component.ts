@@ -31,6 +31,7 @@ export class PrepareEstimateComponent implements OnInit {
   // ── Step 1: Work ID check ─────────────────────────────────────
   workIdInput: string  = '';
   isChecking:  boolean = false;
+  fromPage:    string  = '';  // 'reports' | '' — determines where Back navigates
   checkError:  string  = '';
   workChecked: boolean = false;
 
@@ -117,6 +118,7 @@ export class PrepareEstimateComponent implements OnInit {
   savedItems:  any[] = [];
   currentItem: any   = this.createEmptyItem(1);
   editingIndex: number = -1;
+  isAddingItem: boolean = false;  // controls whether the new-item input row is visible
   totals = { totalAmount: 0, gst: 0, grandTotal: 0 };
 
   // ── Autocomplete ──────────────────────────────────────────────
@@ -165,7 +167,9 @@ export class PrepareEstimateComponent implements OnInit {
   ngOnInit(): void {
     this.initLocationDropdowns();  // set up dropdowns from user's assigned areas
     this.restoreDraft();
-    const navWorkId = history.state?.workId;
+    const navWorkId   = history.state?.workId;
+    const navFromPage = history.state?.fromPage;
+    if (navFromPage) { this.fromPage = navFromPage; }
     if (navWorkId) {
       this.workIdInput = navWorkId;
       setTimeout(() => this.onCheckWorkId(), 0);
@@ -392,12 +396,25 @@ export class PrepareEstimateComponent implements OnInit {
   onDimensionChange(): void {
     const item = this.currentItem;
     const filledDims = [item.length, item.breadth, item.depth].filter((v: number) => v > 0);
-    let dp = filledDims.length === 0 ? 1 : filledDims.length === 1 ? filledDims[0] : filledDims.length === 2 ? filledDims[0] * filledDims[1] : filledDims[0] * filledDims[1] * filledDims[2];
-    item.quantity = parseFloat(((item.numbers > 0 ? item.numbers : 1) * dp).toFixed(4));
-    item.amount   = parseFloat((item.quantity * item.rate).toFixed(2));
+    // Only recalculate quantity from dimensions if at least one dimension is filled.
+    // If none are filled, leave quantity untouched (stays 0 by default) so amount stays 0
+    // until the user explicitly enters a quantity or a dimension.
+    if (filledDims.length > 0) {
+      const dp = filledDims.length === 1 ? filledDims[0]
+               : filledDims.length === 2 ? filledDims[0] * filledDims[1]
+               : filledDims[0] * filledDims[1] * filledDims[2];
+      item.quantity = parseFloat(((item.numbers > 0 ? item.numbers : 1) * dp).toFixed(4));
+    }
+    item.amount = parseFloat((item.quantity * item.rate).toFixed(2));
   }
   onRateChange():     void { this.currentItem.amount = parseFloat((this.currentItem.quantity * this.currentItem.rate).toFixed(2)); }
   onQuantityChange(): void { this.currentItem.amount = parseFloat((this.currentItem.quantity * this.currentItem.rate).toFixed(2)); }
+
+  startAddItem(): void {
+    this.editingIndex = -1;
+    this.currentItem  = this.createEmptyItem(this.savedItems.length + 1);
+    this.isAddingItem = true;
+  }
 
   onAdd(): void {
     if (this.editingIndex >= 0) {
@@ -413,14 +430,16 @@ export class PrepareEstimateComponent implements OnInit {
       });
     }
 
-    this.currentItem = this.createEmptyItem(this.savedItems.length + 1);
+    this.currentItem  = this.createEmptyItem(this.savedItems.length + 1);
+    this.isAddingItem = false;
     this.refreshTotals();
     this.saveDraft();
   }
 
   onCancel(): void {
     this.editingIndex = -1;
-    this.currentItem = this.createEmptyItem(this.savedItems.length + 1);
+    this.currentItem  = this.createEmptyItem(this.savedItems.length + 1);
+    this.isAddingItem = false;
   }
 
   onDelete(i: number): void {
@@ -429,7 +448,8 @@ export class PrepareEstimateComponent implements OnInit {
 
     if (this.editingIndex === i) {
       this.editingIndex = -1;
-      this.currentItem = this.createEmptyItem(this.savedItems.length + 1);
+      this.currentItem  = this.createEmptyItem(this.savedItems.length + 1);
+      this.isAddingItem = false;
     } else if (this.editingIndex > i) {
       this.editingIndex -= 1;
       this.currentItem.sNo = this.editingIndex + 1;
@@ -443,7 +463,8 @@ export class PrepareEstimateComponent implements OnInit {
 
   onEdit(i: number): void {
     this.editingIndex = i;
-    this.currentItem = {
+    this.isAddingItem = true;  // show the input row for editing
+    this.currentItem  = {
       ...this.savedItems[i],
       sNo: i + 1
     };
@@ -638,7 +659,10 @@ export class PrepareEstimateComponent implements OnInit {
     }
   }
 
-  goBack(): void { this.router.navigate(['/home']); }
+  goBack(): void {
+    if (this.fromPage === 'reports') { this.router.navigate(['/reports']); return; }
+    this.router.navigate(['/home']);
+  }
   onLogout(): void { this.auth.logout(); this.router.navigate(['/login']); }
 
   createEmptyItem(sNo: number): any {

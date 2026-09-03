@@ -1,7 +1,7 @@
 <!-- Navbar -->
 <div class="top-navbar">
   <div class="navbar-left">
-    <button class="btn-back-home" (click)="goBack()">&#8592; Home</button>
+    <button class="btn-back-home" (click)="goBack()">&#8592; {{ fromPage === 'reports' ? 'Reports' : 'Home' }}</button>
     <span class="navbar-logo">&#127963;</span>
     <span class="navbar-title">Work Order Management System</span>
   </div>
@@ -276,7 +276,7 @@
               <td><input type="number" [(ngModel)]="currentItem.quantity" (ngModelChange)="onQuantityChange()"  name="quantityEdit" class="input-dim" min="0" /></td>
               <td><input type="number" [(ngModel)]="currentItem.rate"     (ngModelChange)="onRateChange()"      name="rateEdit"     class="input-dim" min="0" /></td>
               <td><input type="text"   [(ngModel)]="currentItem.unit"     name="unitEdit"     class="input-unit" /></td>
-              <td><input type="number" [(ngModel)]="currentItem.amount"   name="amountEdit"   class="input-dim" min="0" /></td>
+              <td class="center computed-amount">{{ currentItem.amount | number:'1.2-2' }}</td>
               <td class="radio-cell">
                 <label class="radio-label">
                   <input type="radio" [(ngModel)]="currentItem.isMaterial" name="isMaterialEdit" value="Yes" />
@@ -294,8 +294,8 @@
             </tr>
           </ng-container>
 
-          <!-- Input row -->
-          <tr class="edit-row" *ngIf="editingIndex < 0">
+          <!-- Input row — only visible when user clicks "+ Add Item" -->
+          <tr class="edit-row" *ngIf="isAddingItem && editingIndex < 0">
             <td class="center">{{ currentItem.sNo }}</td>
             <td class="desc-cell">
               <div class="autocomplete-wrapper">
@@ -322,7 +322,7 @@
             <td><input type="number" [(ngModel)]="currentItem.quantity" (ngModelChange)="onQuantityChange()"  name="quantity" class="input-dim" min="0" /></td>
             <td><input type="number" [(ngModel)]="currentItem.rate"     (ngModelChange)="onRateChange()"      name="rate"     class="input-dim" min="0" /></td>
             <td><input type="text"   [(ngModel)]="currentItem.unit"     name="unit"     class="input-unit" /></td>
-            <td><input type="number" [(ngModel)]="currentItem.amount"   name="amount"   class="input-dim" min="0" /></td>
+            <td class="center computed-amount">{{ currentItem.amount | number:'1.2-2' }}</td>
             <td class="radio-cell">
               <label class="radio-label">
                 <input type="radio" [(ngModel)]="currentItem.isMaterial" name="isMaterial" value="Yes" />
@@ -340,6 +340,10 @@
           </tr>
         </tbody>
       </table>
+      <!-- Show Add Item button only when not currently adding/editing -->
+      <div class="add-item-bar" *ngIf="!isAddingItem && (isEditable || isNewWork)">
+        <button class="btn-add-item-row" (click)="startAddItem()">+ Add Item</button>
+      </div>
       <div class="row-total">
         <span class="total-label">Total</span>
         <span class="total-value">{{ getRowTotal() | number:'1.2-2' }}</span>
@@ -353,7 +357,7 @@
         <div class="totals-row">
           <div class="totals-field">
             <label>Total Amount</label>
-            <input type="number" [(ngModel)]="totals.totalAmount" (ngModelChange)="onTotalAmountChange()" name="totalAmount" class="totals-input" placeholder="0.00" />
+            <input type="number" [value]="totals.totalAmount" name="totalAmount" class="totals-input" readonly />
           </div>
           <div class="totals-field">
             <label>GST
@@ -361,11 +365,11 @@
                 <option *ngFor="let g of gstOptions" [value]="g">{{ g }}%</option>
               </select>
             </label>
-            <input type="number" [(ngModel)]="totals.gst" name="gstAmount" class="totals-input" placeholder="0.00" />
+            <input type="number" [value]="totals.gst" name="gstAmount" class="totals-input" readonly />
           </div>
           <div class="totals-field">
             <label>Grand Total</label>
-            <input type="number" [(ngModel)]="totals.grandTotal" name="grandTotal" class="totals-input grand-input" placeholder="0.00" />
+            <input type="number" [value]="totals.grandTotal" name="grandTotal" class="totals-input grand-input" readonly />
           </div>
         </div>
       </div>
@@ -379,12 +383,19 @@
 
     <!-- Action buttons — always show both -->
     <div class="action-btn-row">
+      <button class="btn-save-work" (click)="onSaveWork()" [disabled]="isSaving">
+        {{ isSaving ? 'Saving...' : '&#128190; Save' }}
+      </button>
       <button class="btn-generate" (click)="onGenerateSheet()">
         &#128196; Generate Abstract
       </button>
       <button class="btn-submit-work" (click)="openSubmitDialog()">
         &#9650; Submit
       </button>
+    </div>
+    <div class="save-feedback-row">
+      <span class="save-success-msg" *ngIf="saveSuccess">&#10003; {{ saveSuccess }}</span>
+      <span class="save-error-msg"   *ngIf="saveError">&#9888; {{ saveError }}</span>
     </div>
 
   </div>

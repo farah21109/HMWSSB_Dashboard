@@ -1,1 +1,23 @@
 @import '../home/shared.css';
+
+/* .lookup-section has overflow: hidden (to round its corners), which clips
+   the absolutely-positioned suggestions dropdown. Override it here so the
+   dropdown can render below the section, same as .desc-cell does elsewhere. */
+.lookup-section {
+  overflow: visible;
+}
+
+/* The lookup input is now wrapped in .autocomplete-wrapper for the
+   suggestions dropdown — make the wrapper take the flexible space
+   the input used to take directly inside .lookup-row. */
+.lookup-row .autocomplete-wrapper {
+  flex: 1;
+}
+
+.lookup-row .autocomplete-wrapper .lookup-input {
+  width: 100%;
+}
+
+.lookup-row .autocomplete-wrapper .suggestions-list {
+  width: 100%;
+}

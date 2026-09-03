@@ -15,16 +15,41 @@
 </div>
 
 <div class="page-container">
+
+  <!-- Search -->
+  <div class="lookup-section">
+    <div class="section-title">Search Reports — Work ID / Name</div>
+    <div class="lookup-body">
+      <div class="lookup-row">
+        <div class="autocomplete-wrapper">
+          <input type="text" [(ngModel)]="searchInput" name="searchInput"
+            class="lookup-input" placeholder="Enter Work ID or Work Name..."
+            autocomplete="off"
+            (input)="onSearchInput()"
+            (focus)="onSearchInput()"
+            (blur)="closeSuggestions()" />
+          <ul class="suggestions-list" *ngIf="showSuggestions && suggestions.length > 0">
+            <li *ngFor="let s of suggestions" (mousedown)="onSelectSuggestion(s)" class="suggestion-item">
+              <span class="sug-desc">{{ s.work_id }} &mdash; {{ s.name_of_work }}</span>
+              <span class="sug-meta">{{ s.circle || s.division || s.ward || '' }}</span>
+            </li>
+          </ul>
+        </div>
+        <button class="btn-check" (click)="clearSearch()" *ngIf="searchInput">Clear</button>
+      </div>
+    </div>
+  </div>
+
   <div class="works-list-section">
     <div class="section-title">Reports / Abstract</div>
     <div class="works-list-body">
       <div class="list-loading" *ngIf="isLoading">Loading works...</div>
       <div class="list-error" *ngIf="error">{{ error }}</div>
-      <div class="list-empty" *ngIf="!isLoading && !error && worksList.length === 0">
-        No submitted or pending works found.
+      <div class="list-empty" *ngIf="!isLoading && !error && filteredWorksList.length === 0">
+        {{ searchInput ? 'No works match your search.' : 'No submitted or pending works found.' }}
       </div>
 
-      <table class="works-list-table" *ngIf="!isLoading && worksList.length > 0">
+      <table class="works-list-table" *ngIf="!isLoading && filteredWorksList.length > 0">
         <thead>
           <tr>
             <th>Name of Work</th>
@@ -35,7 +60,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let work of worksList" class="works-list-row" (click)="openEstimate(work)">
+          <tr *ngFor="let work of filteredWorksList" class="works-list-row" (click)="openEstimate(work)">
             <td>
               <div class="work-title">{{ work.name_of_work }}</div>
               <div class="work-meta">

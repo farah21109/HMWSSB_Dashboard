@@ -1,5 +1,27 @@
 @import '../home/shared.css';
 
+/* .lookup-section has overflow: hidden (to round its corners), which clips
+   the absolutely-positioned suggestions dropdown. Override it here so the
+   dropdown can render below the section, same as .desc-cell does elsewhere. */
+.lookup-section {
+  overflow: visible;
+}
+
+/* The lookup input is wrapped in .autocomplete-wrapper for the suggestions
+   dropdown — make the wrapper take the flexible space the input used to
+   take directly inside .lookup-row. */
+.lookup-row .autocomplete-wrapper {
+  flex: 1;
+}
+
+.lookup-row .autocomplete-wrapper .lookup-input {
+  width: 100%;
+}
+
+.lookup-row .autocomplete-wrapper .suggestions-list {
+  width: 100%;
+}
+
 .action-col {
   width: 240px;
 }
@@ -23,6 +45,15 @@
   font-weight: bold;
   text-align: right;
   white-space: nowrap;
+  width: 160px;
+  min-width: 160px;
+}
+
+/* Align Amount header to match right-aligned amount values */
+.works-list-table th:nth-child(2) {
+  text-align: right;
+  width: 160px;
+  min-width: 160px;
 }
 
 .action-cell {

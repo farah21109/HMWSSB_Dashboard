@@ -1,7 +1,7 @@
 <!-- Top Navbar -->
 <div class="top-navbar">
   <div class="navbar-left">
-    <button class="btn-back-home" (click)="goBack()">&#8592; Home</button>
+    <button class="btn-back-home" (click)="goBack()">&#8592; {{ fromPage === 'reports' ? 'Reports' : 'Home' }}</button>
     <button class="btn-back-home" *ngIf="fromPage === 'prepare-estimate'"
             (click)="goBackToEstimate()">
       &#8592; Back to Estimate
@@ -36,104 +36,164 @@
 
   <div class="alert-success" *ngIf="submitSuccess">{{ submitSuccess }}</div>
   <div class="alert-error" *ngIf="submitError">{{ submitError }}</div>
+  <div class="alert-success" *ngIf="saveSuccess">&#10003; Saved successfully!</div>
+  <div class="alert-error" *ngIf="saveError">{{ saveError }}</div>
 
   <div class="abstract-sheet">
     <table class="general-abstract-table">
       <thead>
         <tr>
-          <th colspan="4" class="sheet-title">GENERAL ABSTRACT</th>
+          <th colspan="5" class="sheet-title">GENERAL ABSTRACT</th>
         </tr>
         <tr>
-          <th colspan="4" class="work-name">
-            Name of Work: {{ nameOfWork }}
-          </th>
+          <th colspan="5" class="work-name">Name of Work: {{ nameOfWork }}</th>
         </tr>
         <tr class="column-header">
           <th class="serial-col">Sl.No</th>
           <th colspan="2">Description</th>
           <th class="amount-col">Amount Rs.</th>
+          <th class="action-col-header"></th>
         </tr>
       </thead>
       <tbody>
+
+        <!-- Part I -->
         <tr class="part-row">
-          <td></td>
-          <td colspan="2">Part-I - Working Items</td>
-          <td></td>
+          <td></td><td colspan="2">Part-I - Material and Civil Works</td><td></td><td class="action-col-cell"></td>
         </tr>
         <tr>
-          <td class="center">1</td>
-          <td colspan="2">Cost of Material</td>
-          <td class="amount">{{ materialTotal | number:'1.2-2' }}</td>
+          <td class="center">1</td><td colspan="2">Cost of Material</td>
+          <td class="amount">{{ materialTotal | number:'1.2-2' }}</td><td class="action-col-cell"></td>
         </tr>
         <tr>
-          <td class="center">2</td>
-          <td colspan="2">Cost of Civil work</td>
-          <td class="amount">{{ civilWorksTotal | number:'1.2-2' }}</td>
+          <td class="center">2</td><td colspan="2">Cost of Civil work</td>
+          <td class="amount">{{ civilWorksTotal | number:'1.2-2' }}</td><td class="action-col-cell"></td>
         </tr>
         <tr class="subtotal-row">
-          <td></td>
-          <td colspan="2">Cost of Estimate : Part-I</td>
-          <td class="amount">{{ (materialTotal + civilWorksTotal) | number:'1.2-2' }}</td>
+          <td></td><td colspan="2">Cost of Estimate : Part-I</td>
+          <td class="amount">{{ (materialTotal + civilWorksTotal) | number:'1.2-2' }}</td><td class="action-col-cell"></td>
         </tr>
+
+        <!-- Part II -->
         <tr class="part-row">
-          <td></td>
-          <td colspan="2">Part-II - Reimbursible Items</td>
-          <td></td>
+          <td></td><td colspan="2">Part-II - GST</td><td></td><td class="action-col-cell"></td>
         </tr>
         <tr>
           <td class="center">3</td>
           <td>GST &#64; {{ gstRate }}%</td>
           <td class="currency">Rs.</td>
           <td class="amount">{{ gstAmount | number:'1.2-2' }}</td>
+          <td class="action-col-cell"></td>
         </tr>
-        <tr class="blank-row">
-          <td></td>
-          <td colspan="2"></td>
-          <td></td>
-        </tr>
-        <tr class="part-row">
-          <td></td>
-          <td colspan="2">Part-III: LS provisions</td>
-          <td></td>
-        </tr>
-        <tr>
-          <td class="center">4</td>
-          <td>LS unforeseen items and rounding off</td>
+
+        <!-- Part II: Custom rows -->
+        <tr *ngFor="let row of part2CustomRows; let i = index">
+          <td class="center">{{ i + 4 }}</td>
+          <td>
+            <input type="text" [(ngModel)]="row.description" (ngModelChange)="saveDraft()"
+              class="custom-row-input" placeholder="Description"
+              [disabled]="viewOnly || !canEditAbstract" />
+          </td>
           <td class="currency">Rs.</td>
           <td class="amount input-cell">
-            <input
-              type="number"
-              [(ngModel)]="lsAmount"
-              (ngModelChange)="onLsChange()"
-              name="lsAmount"
-              class="ls-input"
-              min="0"
-              placeholder="0.00"
-            />
+            <input type="number" [(ngModel)]="row.amount" (ngModelChange)="onCustomRowAmountChange()"
+              class="ls-input" min="0" placeholder="0.00"
+              [disabled]="viewOnly || !canEditAbstract" />
+          </td>
+          <td class="action-col-cell">
+            <button *ngIf="canEditAbstract && !viewOnly" (click)="deletePart2Row(i)"
+              class="btn-delete" title="Delete">✕</button>
           </td>
         </tr>
-        <tr class="blank-row">
-          <td></td>
-          <td colspan="2"></td>
-          <td></td>
+
+        <!-- Add Part II row button -->
+        <tr class="add-row-row" *ngIf="canEditAbstract && !viewOnly && part2CustomRows.length > 0">
+          <td></td><td colspan="4">
+            <button (click)="addPart2Row()" class="btn-add-more">+ Add item</button>
+          </td>
         </tr>
+        <tr class="add-row-row" *ngIf="canEditAbstract && !viewOnly && part2CustomRows.length === 0">
+          <td></td><td colspan="4">
+            <button (click)="addPart2Row()" class="btn-add-row">+ Add custom item (Part II)</button>
+          </td>
+        </tr>
+
+        <tr class="blank-row">
+          <td></td><td colspan="2"></td><td></td><td class="action-col-cell"></td>
+        </tr>
+
+        <!-- Part III -->
+        <tr class="part-row">
+          <td></td><td colspan="2">Part-III: LS provisions</td><td></td><td class="action-col-cell"></td>
+        </tr>
+        <tr>
+          <td class="center">{{ part2CustomRows.length + 4 }}</td>
+          <td>LS</td>
+          <td class="currency">Rs.</td>
+          <td class="amount input-cell">
+            <input type="number" [(ngModel)]="lsAmount" (ngModelChange)="onLsChange()"
+              name="lsAmount" class="ls-input" min="0" placeholder="0.00"
+              [disabled]="viewOnly || !canEditAbstract" />
+          </td>
+          <td class="action-col-cell"></td>
+        </tr>
+
+        <!-- Part III: Custom rows -->
+        <tr *ngFor="let row of part3CustomRows; let i = index">
+          <td class="center">{{ part2CustomRows.length + i + 5 }}</td>
+          <td>
+            <input type="text" [(ngModel)]="row.description" (ngModelChange)="saveDraft()"
+              class="custom-row-input" placeholder="Description"
+              [disabled]="viewOnly || !canEditAbstract" />
+          </td>
+          <td class="currency">Rs.</td>
+          <td class="amount input-cell">
+            <input type="number" [(ngModel)]="row.amount" (ngModelChange)="onCustomRowAmountChange()"
+              class="ls-input" min="0" placeholder="0.00"
+              [disabled]="viewOnly || !canEditAbstract" />
+          </td>
+          <td class="action-col-cell">
+            <button *ngIf="canEditAbstract && !viewOnly" (click)="deletePart3Row(i)"
+              class="btn-delete" title="Delete">✕</button>
+          </td>
+        </tr>
+
+        <!-- Add Part III row button -->
+        <tr class="add-row-row" *ngIf="canEditAbstract && !viewOnly && part3CustomRows.length > 0">
+          <td></td><td colspan="4">
+            <button (click)="addPart3Row()" class="btn-add-more">+ Add provision</button>
+          </td>
+        </tr>
+        <tr class="add-row-row" *ngIf="canEditAbstract && !viewOnly && part3CustomRows.length === 0">
+          <td></td><td colspan="4">
+            <button (click)="addPart3Row()" class="btn-add-row">+ Add custom provision (Part III)</button>
+          </td>
+        </tr>
+
+        <tr class="blank-row">
+          <td></td><td colspan="2"></td><td></td><td class="action-col-cell"></td>
+        </tr>
+
+        <!-- Grand Total -->
         <tr class="grand-row">
-          <td class="center">5</td>
+          <td class="center">{{ part2CustomRows.length + part3CustomRows.length + 5 }}</td>
           <td>Grand Total (Part I + II + III)</td>
           <td class="currency">Rs.</td>
           <td class="amount">{{ grandTotal | number:'1.2-2' }}</td>
+          <td class="action-col-cell"></td>
         </tr>
+
       </tbody>
     </table>
   </div>
 
   <div class="abstract-actions">
-    <button class="btn-generate-excel" (click)="generateExcel()">Generate Excel</button>
-    <button
-      class="btn-submit-abstract"
-      *ngIf="canEditAbstract && !viewOnly"
-      (click)="submitAbstract()"
-      [disabled]="isSubmitting">
+    <button class="btn-save-abstract" (click)="onSave()" [disabled]="isSaving || viewOnly">
+      {{ isSaving ? 'Saving...' : '&#128190; Save' }}
+    </button>
+    <button class="btn-generate-excel" (click)="generateExcel()">Generate Abstract</button>
+    <button class="btn-submit-abstract" *ngIf="canEditAbstract && !viewOnly"
+      (click)="submitAbstract()" [disabled]="isSubmitting">
       {{ isSubmitting ? 'Submitting...' : 'Submit' }}
     </button>
   </div>

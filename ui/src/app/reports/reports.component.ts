@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../login/auth.service';
@@ -8,7 +9,7 @@ import { AbstractStateService } from '../work-order/abstract-state.service';
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './reports.component.html',
   styleUrls: ['./reports.component.css']
 })
@@ -18,6 +19,14 @@ export class ReportsComponent implements OnInit {
   worksList: any[] = [];
   isLoading = false;
   error = '';
+
+  // ── Search box with suggestions ──────────────────────────────
+  // Filters the already-loaded worksList client-side, same approach as
+  // Edit Estimate — avoids extra round trips and always matches what's
+  // actually shown in the table below.
+  searchInput: string = '';
+  suggestions: any[] = [];
+  showSuggestions: boolean = false;
 
   constructor(
     private auth: AuthService,
@@ -53,7 +62,7 @@ export class ReportsComponent implements OnInit {
   }
 
   openEstimate(work: any): void {
-    this.router.navigate(['/prepare-estimate'], { state: { workId: work.work_id } });
+    this.router.navigate(['/prepare-estimate'], { state: { workId: work.work_id, fromPage: 'reports' } });
   }
 
   openAbstract(work: any, event?: Event): void {
@@ -118,6 +127,47 @@ export class ReportsComponent implements OnInit {
 
   statusLabel(work: any): string {
     return work.display_status === 'submitted' ? 'Submitted' : 'Yet to Submit';
+  }
+
+  // ── Search box with suggestions ──────────────────────────────
+  onSearchInput(): void {
+    const q = this.searchInput.trim().toLowerCase();
+    if (!q) { this.suggestions = []; this.showSuggestions = false; return; }
+
+    this.suggestions = this.worksList
+      .filter((w: any) =>
+        (w.work_id || '').toLowerCase().includes(q) ||
+        (w.name_of_work || '').toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+    this.showSuggestions = this.suggestions.length > 0;
+  }
+
+  onSelectSuggestion(work: any): void {
+    this.searchInput = work.name_of_work || work.work_id;
+    this.showSuggestions = false;
+  }
+
+  closeSuggestions(): void {
+    // Slight delay so a click on a suggestion registers before the list closes
+    setTimeout(() => { this.showSuggestions = false; }, 200);
+  }
+
+  clearSearch(): void {
+    this.searchInput = '';
+    this.suggestions = [];
+    this.showSuggestions = false;
+  }
+
+  // Table below the search box reflects the same filter as the suggestions,
+  // so typing narrows the list down directly too.
+  get filteredWorksList(): any[] {
+    const q = this.searchInput.trim().toLowerCase();
+    if (!q) return this.worksList;
+    return this.worksList.filter((w: any) =>
+      (w.work_id || '').toLowerCase().includes(q) ||
+      (w.name_of_work || '').toLowerCase().includes(q)
+    );
   }
 
   goBack(): void { this.router.navigate(['/home']); }

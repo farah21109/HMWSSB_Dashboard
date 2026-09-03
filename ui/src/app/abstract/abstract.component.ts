@@ -33,6 +33,9 @@ export class AbstractComponent implements OnInit {
   lsAmount:        number = 0;
   grandTotal:      number = 0;
 
+  part2CustomRows: any[] = [];
+  part3CustomRows: any[] = [];
+
   // Workflow flags
   workId:          string  = '';
   viewOnly:        boolean = false;
@@ -94,14 +97,19 @@ export class AbstractComponent implements OnInit {
     if (this.workId) { this.loadExistingAbstract(); }
   }
 
-  // ── Load existing abstract from DB (restores LS) ─────────────
+  // ── Load existing abstract from DB (restores LS and custom rows) ─────────────
   loadExistingAbstract(): void {
     this.http.get<any>(`${this.apiBase}/works/${this.workId}/abstract`).subscribe({
       next: (data) => {
         if (data && data.ls_amount != null) {
           this.lsAmount = Number(data.ls_amount) || 0;
-          this.recalcGrandTotal();
         }
+        if (data && data.custom_rows) {
+          const customRows = typeof data.custom_rows === 'string' ? JSON.parse(data.custom_rows) : data.custom_rows;
+          this.part2CustomRows = customRows?.part2 || [];
+          this.part3CustomRows = customRows?.part3 || [];
+        }
+        this.recalcGrandTotal();
       },
       error: () => {} // no abstract yet — that's fine
     });
@@ -109,13 +117,22 @@ export class AbstractComponent implements OnInit {
 
   // ── localStorage draft for LS ─────────────────────────────────
   saveDraft(): void {
-    try { localStorage.setItem(this.draftKey, JSON.stringify({ lsAmount: this.lsAmount })); } catch(e) {}
+    try { localStorage.setItem(this.draftKey, JSON.stringify({
+      lsAmount: this.lsAmount,
+      part2CustomRows: this.part2CustomRows,
+      part3CustomRows: this.part3CustomRows
+    })); } catch(e) {}
   }
 
   restoreDraft(): void {
     try {
       const raw = localStorage.getItem(this.draftKey);
-      if (raw) { const d = JSON.parse(raw); this.lsAmount = d.lsAmount || 0; }
+      if (raw) {
+        const d = JSON.parse(raw);
+        this.lsAmount = d.lsAmount || 0;
+        this.part2CustomRows = d.part2CustomRows || [];
+        this.part3CustomRows = d.part3CustomRows || [];
+      }
     } catch(e) {}
   }
 
@@ -129,9 +146,40 @@ export class AbstractComponent implements OnInit {
     this.saveAbstractToDB(); // also persist to DB silently
   }
 
+  addPart2Row(): void {
+    this.part2CustomRows.push({ description: '', amount: 0 });
+    this.recalcGrandTotal();
+    this.saveDraft();
+  }
+
+  addPart3Row(): void {
+    this.part3CustomRows.push({ description: '', amount: 0 });
+    this.recalcGrandTotal();
+    this.saveDraft();
+  }
+
+  deletePart2Row(index: number): void {
+    this.part2CustomRows.splice(index, 1);
+    this.recalcGrandTotal();
+    this.saveDraft();
+  }
+
+  deletePart3Row(index: number): void {
+    this.part3CustomRows.splice(index, 1);
+    this.recalcGrandTotal();
+    this.saveDraft();
+  }
+
+  onCustomRowAmountChange(): void {
+    this.recalcGrandTotal();
+    this.saveDraft();
+  }
+
   recalcGrandTotal(): void {
+    const part2Total = this.part2CustomRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    const part3Total = this.part3CustomRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
     this.grandTotal = parseFloat(
-      (this.materialTotal + this.civilWorksTotal + this.gstAmount + (this.lsAmount || 0)).toFixed(2)
+      (this.materialTotal + this.civilWorksTotal + this.gstAmount + (this.lsAmount || 0) + part2Total + part3Total).toFixed(2)
     );
   }
 
@@ -148,13 +196,38 @@ export class AbstractComponent implements OnInit {
       gstAmount:       this.gstAmount,
       lsAmount:        this.lsAmount || 0,
       grandTotal:      this.grandTotal,
-      editedBy:        this.userName
+      editedBy:        this.userName,
+      customRows: {
+        part2: this.part2CustomRows,
+        part3: this.part3CustomRows
+      }
     };
 
     // Use upsert endpoint — insert or update if work_id already exists
     this.http.post<any>(`${this.apiBase}/save-abstract`, payload).subscribe({
       next: () => { if (onDone) onDone(true); },
       error: (err) => { if (onDone) onDone(false, err); }
+    });
+  }
+
+  // ── Explicit Save button ──────────────────────────────────────
+  onSave(): void {
+    if (this.isSaving) return;
+    this.isSaving    = true;
+    this.saveSuccess = false;
+    this.saveError   = '';
+    this.recalcGrandTotal();
+    this.saveAbstractToDB((success, err) => {
+      this.isSaving = false;
+      if (success) {
+        this.saveSuccess = true;
+        this.saveDraft();
+        // Auto-dismiss the success message after 3 seconds
+        setTimeout(() => { this.saveSuccess = false; }, 3000);
+      } else {
+        this.saveError = err?.error?.detail || err?.error?.error || 'Save failed. Please try again.';
+        setTimeout(() => { this.saveError = ''; }, 4000);
+      }
     });
   }
 
@@ -211,6 +284,9 @@ export class AbstractComponent implements OnInit {
     });
   }
 
-  goBack(): void { this.router.navigate(['/home']); }
+  goBack(): void {
+    if (this.fromPage === 'reports') { this.router.navigate(['/reports']); return; }
+    this.router.navigate(['/home']);
+  }
   goBackToEstimate(): void { this.router.navigate(['/prepare-estimate']); }
 }

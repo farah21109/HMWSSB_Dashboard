@@ -184,14 +184,20 @@ app.post('/api/save-work-order', async (req, res) => {
 // Saves abstract summary. work_id links it to the work_order_items.
 //
 // ALTER TABLE abstracts ADD COLUMN IF NOT EXISTS work_id TEXT;
+// ALTER TABLE abstracts ADD COLUMN IF NOT EXISTS custom_rows JSONB;
 
 app.post('/api/save-abstract', async (req, res) => {
-  const { workId, nameOfWork, materialTotal, civilWorksTotal, gstRate, gstAmount, lsAmount, grandTotal, editedBy } = req.body;
+  const { workId, nameOfWork, materialTotal, civilWorksTotal, gstRate, gstAmount, lsAmount, grandTotal, editedBy, customRows } = req.body;
   const wid = (workId || '').trim();
   if (!wid) {
     return res.status(400).json({ error: 'workId is required to save abstract' });
   }
   try {
+    // Ensure custom_rows column exists (safe to run repeatedly)
+    await pool.query(`ALTER TABLE abstracts ADD COLUMN IF NOT EXISTS custom_rows JSONB`);
+
+    const customRowsJson = customRows ? JSON.stringify(customRows) : null;
+
     // Check if abstract already exists for this work_id
     const existing = await pool.query(
       `SELECT id, ls_amount FROM abstracts WHERE work_id = $1`, [wid]
@@ -214,20 +220,21 @@ app.post('/api/save-abstract', async (req, res) => {
            gst_amount        = $5,
            ls_amount         = $6,
            grand_total       = $7,
-           edited_by         = $8
-         WHERE work_id = $9`,
+           edited_by         = $8,
+           custom_rows       = $9
+         WHERE work_id = $10`,
         [nameOfWork, materialTotal, civilWorksTotal,
-         gstRate, gstAmount, finalLs, finalGrand, editedBy || '', wid]
+         gstRate, gstAmount, finalLs, finalGrand, editedBy || '', customRowsJson, wid]
       );
     } else {
       // INSERT new row
       await pool.query(
         `INSERT INTO abstracts
            (work_id, name_of_work, material_total, civil_works_total,
-            gst_percentage, gst_amount, ls_amount, grand_total, edited_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            gst_percentage, gst_amount, ls_amount, grand_total, edited_by, custom_rows)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
         [wid, nameOfWork, materialTotal, civilWorksTotal,
-         gstRate, gstAmount, finalLs, finalGrand, editedBy || '']
+         gstRate, gstAmount, finalLs, finalGrand, editedBy || '', customRowsJson]
       );
     }
     res.json({ success: true, ls_amount: finalLs, grand_total: finalGrand });
